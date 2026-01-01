@@ -3,19 +3,79 @@
 \docType{class}
 \name{Range_killer_res}
 \alias{Range_killer_res}
-\title{R6 class: results of a descriptive robustness to removal of extreme values}
+\title{Results Container for Range-Based Robustness Analysis}
 \description{
-R6 class: results of a descriptive robustness to removal of extreme values
-
-R6 class: results of a descriptive robustness to removal of extreme values
+An R6 class that stores results from \code{\link{range_killer}}, which
+assesses the sensitivity of reported descriptive statistics to removal of
+extreme values. The container holds bounds on the mean and standard deviation
+after removing the minimum and maximum observations, accounting for rounding
+uncertainty in the reported values.
 }
 \details{
-Object container for results produced by the \code{range_killer} function.
+Each field contains numeric vectors where each element corresponds to one
+input case. The results follow the standard format of \code{c(min, RIVETS, max)}
+for both the mean and standard deviation after removing extreme values.
+
+When recalculated statistics are impossible (e.g., negative variance),
+the SD fields contain \code{-1} as a flag value rather than a valid statistic.
+This typically indicates inconsistency in the original reported values.
+}
+\section{Fields}{
+
+\describe{
+  \item{\code{Min_mean}}{Numeric vector. Lower bound on the sample mean after
+    removing one minimum and one maximum value from the original sample}
+  \item{\code{RIVETS_mean}}{Numeric vector. Mean recalculated using the
+    reported (central) values, with extremes removed}
+  \item{\code{Max_mean}}{Numeric vector. Upper bound on the sample mean after
+    removing one minimum and one maximum value from the original sample}
+  \item{\code{Min_sd}}{Numeric vector. Lower bound on the sample standard
+    deviation after removing extremes. Set to \code{-1} when the resulting
+    variance is negative (indicating an impossible/inconsistent combination)}
+  \item{\code{RIVETS_sd}}{Numeric vector. SD recalculated using the reported
+    (central) values, with extremes removed. Set to \code{-1} when impossible}
+  \item{\code{Max_sd}}{Numeric vector. Upper bound on the sample standard
+    deviation after removing extremes. Set to \code{-1} when impossible}
+}
+}
+
+\section{Methods}{
+
+\describe{
+  \item{\code{new(Min_mean = NULL, RIVETS_mean = NULL, Max_mean = NULL,
+    Min_sd = NULL, RIVETS_sd = NULL, Max_sd = NULL)}}{Constructor that
+    initializes a new \code{Range_killer_res} object. All arguments are
+    optional and default to \code{NULL}}
+  \item{\code{print(n = NULL)}}{Print results to console. If \code{n} is
+    \code{NULL} (default), prints all cases; if \code{n} is an integer or
+    vector, prints only the specified case(s). Impossible SD values are
+    displayed as "Impossible"}
+}
+}
+
+\examples{
+# Typical usage: returned automatically by range_killer()
+result <- range_killer(
+  m = "10.5", s = "2.3", n = 20,
+  min = "5.2", max = "15.8"
+)
+print(result)
+
+# Manual construction (rarely needed)
+rk <- Range_killer_res$new(
+  Min_mean = 10.2,
+  RIVETS_mean = 10.5,
+  Max_mean = 10.8,
+  Min_sd = 1.9,
+  RIVETS_sd = 2.1,
+  Max_sd = 2.3
+)
+
 }
 \seealso{
-\code{\link{range_killer}}
+\code{\link{range_killer}} for generating these results
 }
-\keyword{class}
+\keyword{classes}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
@@ -68,7 +128,17 @@ Create a new \code{Range_killer_res} object.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{Min_mean, RIVETS_mean, Max_mean, Min_sd, RIVETS_sd, Max_sd}}{Numeric vectors of equal length (one element per input case).}
+\item{\code{Min_mean}}{Numeric vector for minimum mean values}
+
+\item{\code{RIVETS_mean}}{Numeric vector for reported mean values}
+
+\item{\code{Max_mean}}{Numeric vector for maximum mean values}
+
+\item{\code{Min_sd}}{Numeric vector for minimum SD values}
+
+\item{\code{RIVETS_sd}}{Numeric vector for reported SD values}
+
+\item{\code{Max_sd}}{Numeric vector for maximum SD values}
 }
 \if{html}{\out{</div>}}
 }
@@ -87,6 +157,14 @@ Print a human-readable summary for one or more cases.
 \if{html}{\out{<div class="r">}}\preformatted{Range_killer_res$print(n = NULL)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{n}}{Integer or vector specifying which case(s) to display.
+Default is \code{NULL} (all cases)}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Range_killer_res-clone"></a>}}

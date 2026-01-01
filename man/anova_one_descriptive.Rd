@@ -2,25 +2,143 @@
 % Please edit documentation in R/anovas.R
 \name{anova_one_descriptive}
 \alias{anova_one_descriptive}
-\title{Reconstruct results from a one-way ANOVA}
+\title{Reconstruct One-Way ANOVA F-Test from Group Descriptive Statistics}
 \usage{
 anova_one_descriptive(m, s, n, output = FALSE)
 }
 \arguments{
-\item{m}{Character vector. Mean for each group. \strong{Must be character} to infer rounding.}
+\item{m}{Character vector. Reported mean for each group. Must be character
+(not numeric) to allow inference of rounding precision (e.g., \code{"2.5"}
+vs \code{"2.50"})}
 
-\item{s}{Character vector. SD for each group. \strong{Must be character} to infer rounding.}
+\item{s}{Character vector. Reported standard deviation for each group. Must
+be character for the same reason as \code{m}. Length must equal length of
+\code{m}}
 
-\item{n}{Numeric vector. Sample size for each group.}
+\item{n}{Numeric vector. Sample size for each group (integers ≥ 1). Length
+must equal length of \code{m}}
+
+\item{output}{Logical. If \code{TRUE}, prints the result before returning.
+Default is \code{FALSE}}
 }
 \value{
-Minimum, RIVETS and maximum p values
+An object of class \code{\link{Anova_res}} containing:
+  \describe{
+    \item{Min}{Minimum possible p-value from the reconstructed ANOVA}
+    \item{RIVETS}{P-value computed from the reported (central) values}
+    \item{Max}{Maximum possible p-value from the reconstructed ANOVA}
+    \item{Function}{Character string \code{"anova_one_descriptive"}}
+  }
 }
 \description{
-This function allows for the reconstruction of the omnibus test from a one-way ANOVA,
-using the descriptive statistics for each group.
+Reconstructs the omnibus F-test p-value from a one-way ANOVA using only the
+reported means, standard deviations, and sample sizes for each group. This
+allows verification of reported ANOVA results when only descriptive statistics
+are published. The function accounts for rounding uncertainty by computing a
+range of plausible p-values.
 }
-\examples{
-anova_one_descriptive(m = c("2.51", "3.12"), s = c("0.58", "0.34"), n = c(40, 40))
+\details{
+The function performs the following steps:
+\enumerate{
+  \item Converts each reported mean and SD to a plausible interval using
+    \code{\link{validate_descriptive}}, which accounts for rounding precision
+  \item Generates all combinations of minimum/original/maximum values for all
+    group means and SDs (3^(2k) combinations where k is the number of groups)
+  \item For each combination, reconstructs the one-way ANOVA using standard
+    formulas:
+    \itemize{
+      \item Grand mean: \eqn{\bar{X}_{..} = \frac{\sum n_i \bar{X}_i}{\sum n_i}}
+      \item Between-groups mean square: \eqn{MS_B = \frac{\sum n_i(\bar{X}_i - \bar{X}_{..})^2}{k-1}}
+      \item Within-groups mean square: \eqn{MS_W = \frac{\sum (n_i-1)s_i^2}{\sum n_i - k}}
+      \item F-statistic: \eqn{F = \frac{MS_B}{MS_W}}
+      \item P-value: \eqn{P(F_{k-1, N-k} > F_{observed})}
+    }
+    where k is the number of groups and N is the total sample size
+  \item Records the minimum and maximum p-values across all combinations,
+    plus the p-value from the reported (central) values
+}
 
+The reconstruction assumes:
+\itemize{
+  \item All groups are independent
+  \item Reported SDs are sample standard deviations (not standard errors)
+  \item The original analysis used a standard one-way ANOVA (not Welch's
+    heteroscedastic variant)
+}
+}
+\section{Use Cases}{
+
+\itemize{
+  \item \strong{Verification}: Check whether a reported ANOVA p-value is
+    consistent with the reported descriptive statistics
+  \item \strong{Missing p-values}: Estimate ANOVA results when only
+    descriptive statistics are published
+  \item \strong{Error detection}: Identify potential transcription errors or
+    inconsistencies in reported results
+  \item \strong{Meta-analysis}: Extract effect sizes or p-values from papers
+    that only report means and SDs
+}
+}
+
+\section{Interpretation}{
+
+\itemize{
+  \item If a reported ANOVA p-value falls outside the [Min, Max] range,
+    this suggests inconsistency or potential errors in the reported results
+  \item Wide ranges indicate high sensitivity to rounding (common with
+    small sample sizes or highly rounded values)
+  \item The RIVETS value represents the best estimate given the reported
+    central values
+}
+}
+
+\section{Assumptions and Limitations}{
+
+\itemize{
+  \item Assumes equal variance across groups (standard ANOVA assumption).
+    For heteroscedastic alternatives, consider Welch's ANOVA instead
+  \item Requires at least 2 groups (k ≥ 2)
+  \item Very small sample sizes (e.g., n < 5 per group) increase sensitivity
+    to rounding
+  \item Cannot detect whether original analysis used different variants
+    (e.g., Type I vs Type III sums of squares for unbalanced designs,
+    though this distinction only matters with covariates)
+  \item The number of combinations grows exponentially with the number of
+    groups (3^(2k)), which may slow computation for many groups (k > 10)
+}
+}
+
+\examples{
+# Two-group comparison
+result <- anova_one_descriptive(
+  m = c("2.51", "3.12"),
+  s = c("0.58", "0.34"),
+  n = c(40, 40),
+  output = TRUE
+)
+
+# Three-group comparison
+anova_one_descriptive(
+  m = c("10.5", "12.3", "11.8"),
+  s = c("2.1", "2.4", "1.9"),
+  n = c(30, 30, 30)
+)
+
+# Verify published ANOVA results
+reported_means <- c("5.2", "6.8", "7.1", "5.9")
+reported_sds <- c("1.2", "1.5", "1.3", "1.4")
+sample_sizes <- c(25, 25, 25, 25)
+result <- anova_one_descriptive(
+  m = reported_means,
+  s = reported_sds,
+  n = sample_sizes
+)
+# Compare result$RIVETS to the published p-value
+# If published p-value is outside [result$Min, result$Max], flag inconsistency
+
+}
+\seealso{
+\code{\link{Anova_res}} for the result object structure,
+  \code{\link{validate_descriptive}} for the validation function,
+  \code{\link{t_slicer}} for two-group comparisons
 }

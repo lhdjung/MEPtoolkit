@@ -2,23 +2,55 @@
 % Please edit documentation in R/rounding_validation.R
 \name{decimal_place}
 \alias{decimal_place}
-\title{Find and return the number of decimal places on a statistic}
+\title{Count Decimal Places in a Numeric String}
 \usage{
 decimal_place(statistic)
 }
 \arguments{
-\item{statistic}{Number or (ideally) character vectors. The statistic to
-examine}
+\item{statistic}{Character scalar or vector. Numeric value(s) represented
+as character strings (e.g., \code{"3.14"}, \code{".05"}, \code{"2.00"})}
 }
 \value{
-The number of decimal places
+Integer vector of the same length as \code{statistic}, giving the
+  number of decimal places in each element. Returns \code{0L} for whole
+  numbers without a decimal point, and \code{NA_integer_} for \code{NA}
+  inputs
 }
 \description{
-Find and return the number of decimal places on a statistic
+Determines the number of decimal places in a character representation of a
+number. This is used to infer the rounding precision of reported statistics,
+which is essential for computing plausible value ranges.
+}
+\details{
+The function counts digits after the decimal point, including trailing zeros.
+For example:
+\itemize{
+  \item \code{"3"} → 0 decimal places
+  \item \code{"3.1"} → 1 decimal place
+  \item \code{"3.10"} → 2 decimal places (trailing zero counts)
+  \item \code{".984"} → 3 decimal places
+  \item \code{NA} → \code{NA_integer_}
+}
+
+This precision information is used by \code{\link{validate_descriptive}} and
+\code{\link{validate_p}} to construct plausible intervals around rounded
+values.
 }
 \examples{
+# Whole number
 decimal_place("3")
+
+# Leading decimal point
 decimal_place(".984")
+
+# Trailing zeros count
 decimal_place("2.00")
+
+# Vector input with NA
 decimal_place(c("3.14", NA, "6.8"))
+
+}
+\seealso{
+\code{\link{validate_descriptive}} and \code{\link{validate_p}} which
+  use this function to determine rounding precision
 }

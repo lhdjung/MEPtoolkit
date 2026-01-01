@@ -2,25 +2,89 @@
 % Please edit documentation in R/rounding_validation.R
 \name{validate_p}
 \alias{validate_p}
-\title{Validate a p statistic}
+\title{Validate and Expand P-Values to Account for Rounding and Truncation}
 \usage{
 validate_p(p, allow_na = FALSE)
 }
 \arguments{
-\item{p}{Character string or vector of strings. The p value(s) to validate}
+\item{p}{Character scalar or vector. Reported p-value(s) as character
+strings. Can include standard decimal notation (e.g., \code{".05"},
+\code{"0.123"}) or inequality notation (e.g., \code{"<.001"}, \code{"< 0.05"})}
 
-\item{allow_na}{Logical. Allows the use of NA values
-(returns NA for min/original/max)}
+\item{allow_na}{Logical. If \code{TRUE}, permits \code{NA} values in the
+input (which produce \code{NA} in all output fields). Default is \code{FALSE}}
 }
 \value{
-A list of numbers: the possible range of values (minimum, original
-and maximum)
+A list with three numeric vectors of equal length:
+  \describe{
+    \item{minimum}{Lower bound of the plausible interval. For \code{"<"}
+      values, this is effectively 0 (\code{.Machine$double.xmin})}
+    \item{original}{The reported (central) value. For \code{"<"} values,
+      this is slightly less than the threshold to avoid the boundary}
+    \item{maximum}{Upper bound of the plausible interval. For \code{"<"}
+      values, this is the reported threshold}
+  }
 }
 \description{
-Checks it is a string that can be converted to a number, and returns the
-possible range of values before rounding
+Converts reported p-values into plausible intervals that account for
+rounding precision and inequality notation (e.g., \code{"<.001"}). This
+function handles the special conventions used for reporting p-values in
+scientific literature.
 }
+\details{
+The function handles two types of p-value notation:
+
+\strong{Standard notation} (e.g., \code{".05"}, \code{"0.123"}):
+\itemize{
+  \item Determines decimal precision using \code{\link{decimal_place}}
+  \item Constructs interval \eqn{[\max(0, p - 0.5 \times 10^{-d}),
+    \min(1, p + 0.5 \times 10^{-d})]}
+  \item Example: \code{".05"} → [0.045, 0.05, 0.055]
+}
+
+\strong{Inequality notation} (e.g., \code{"<.001"}, \code{"< 0.05"}):
+\itemize{
+  \item Minimum is set to \code{.Machine$double.xmin} (effectively 0)
+  \item Original is set to slightly below the threshold
+  \item Maximum is the reported threshold
+  \item Example: \code{"<.001"} → [~0, ~0.001, 0.001]
+}
+
+The function ensures all values remain in the valid p-value range [0, 1].
+}
+\section{Use in Package}{
+
+This function is called internally by:
+\itemize{
+  \item \code{\link{t_slicer}} to handle reported p-values for consistency
+    checking
+  \item \code{\link{carlisle}} to handle p-values for aggregation testing
+}
+}
+
 \examples{
-validate_p(".14")
+# Standard p-value notation
+validate_p(".05")
+# Returns approximately: list(minimum = 0.045, original = 0.05, maximum = 0.055)
+
+# Inequality notation (less than)
+validate_p("<.001")
+# Returns approximately: list(minimum = ~0, original = ~0.001, maximum = 0.001)
+
+# Vector input with mixed notation
+validate_p(c(".14", "<.001", "0.58"))
+
+# With NA values (requires allow_na = TRUE)
 validate_p(c(".14", "<.001", NA, ".58"), allow_na = TRUE)
+
+# Different precisions
+validate_p(".1")    # One decimal: ±0.05
+validate_p(".10")   # Two decimals: ±0.005
+validate_p(".100")  # Three decimals: ±0.0005
+
+}
+\seealso{
+\code{\link{validate_descriptive}} for general descriptive statistics,
+  \code{\link{decimal_place}} for determining rounding precision,
+  \code{\link{t_slicer}} and \code{\link{carlisle}} which use this function
 }

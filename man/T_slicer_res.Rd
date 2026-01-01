@@ -3,96 +3,100 @@
 \docType{class}
 \name{T_slicer_res}
 \alias{T_slicer_res}
-\title{R6 class: container for t_slicer() results}
-\format{
-An R6 object with the following public fields and methods:
-\describe{
-\item{\code{Student_RIVETS}}{Numeric vector. Per-case p-values computed
-from the reported (central) descriptive values for the Student (pooled)
-t-test.}
-\item{\code{Welch_RIVETS}}{Numeric vector. Per-case p-values computed
-from the reported (central) descriptive values for the Welch
-(unequal-variance) t-test.}
-\item{\code{Student_min}}{Numeric vector. Per-case minimum plausible
-p-value for the Student test obtained by enumerating rounding-
-consistent alternatives.}
-\item{\code{Student_max}}{Numeric vector. Per-case maximum plausible
-p-value for the Student test.}
-\item{\code{Welch_min}}{Numeric vector. Per-case minimum plausible
-p-value for the Welch test.}
-\item{\code{Welch_max}}{Numeric vector. Per-case maximum plausible
-p-value for the Welch test.}
-\item{\code{Student}}{Logical vector. Per-case indicator whether the
-reported p-interval (if supplied to \code{t_slicer}) overlaps the
-plausibility interval for the Student test (\code{TRUE} = consistent,
-\code{FALSE} = inconsistent, \code{NA} = no reported p).}
-\item{\code{Welch}}{Logical vector. Analogous indicator for the Welch
-test.}
-\item{\code{Plots}}{List of \pkg{ggplot2} objects (one per case). Each
-plot visualises the min/mid/max p-values for Student and Welch and,
-when available, the reported p-interval.}
-\item{\code{initialize(Student_RIVETS, Welch_RIVETS, Student_min,
-Student_max, Welch_min, Welch_max, Student, Welch, Plots)}}{Constructor.
-All arguments are optional; unspecified fields remain \code{NULL}.}
-\item{\code{print(n = NULL)}}{Pretty-print results to the console. If
-\code{n} is \code{NULL} (default) prints all rows; if \code{n} is an
-integer or integer vector prints only the specified row(s).}
-\item{\code{plot(n = NULL)}}{Plot method. If \code{n} is \code{NULL}
-(default) arranges all case plots into a grid (uses
-\pkg{cowplot}::\code{plot_grid}); if \code{n} is a single integer it
-draws the plot for that case.}
-}
-}
-\value{
-An R6 object of class \code{T_slicer_res} for programmatic access and
-human inspection (via \code{print} and \code{plot}).
-}
+\title{Results Container for Two-Sample t-Test Consistency Analysis}
 \description{
-R6 class: container for t_slicer() results
-
-R6 class: container for t_slicer() results
+An R6 class that stores results from \code{\link{t_slicer}}, including
+p-value ranges for Student's (pooled-variance) and Welch's (unequal-variance)
+two-sample t-tests, consistency flags when reported p-values are provided,
+and diagnostic visualizations.
 }
 \details{
-Lightweight R6 container that holds the outputs produced by
-\code{\link{t_slicer}}. The object stores per-case p-value summaries for
-Student (pooled-variance) and Welch (unequal-variance) two-sample
-t-tests, boolean consistency flags (if p-values were provided),
-and diagnostic \pkg{ggplot2} plots.
-
-
-Typical usage: \code{t_slicer()} constructs and returns an instance of
-\code{T_slicer_res}. The three-element p-value summaries follow the
-package convention: \code{min} (extreme lower), \code{RIVETS} (computed from
-reported central values), and \code{max} (extreme upper). The boolean fields
-\code{Student} and \code{Welch} indicate whether the reported p-interval
-overlaps the corresponding test's plausible p-interval.
-
-The \code{Plots} field contains \pkg{ggplot2} objects; printing the object
-does not automatically draw plots (use \code{plot(obj)} or call
-\code{t_slicer(..., output = TRUE)} to display graphs).
+This container holds three p-value summaries per test type:
+\itemize{
+  \item \strong{min}: Minimum plausible p-value across all rounding-consistent
+    parameter combinations
+  \item \strong{RIVETS}: P-value computed from the reported (central) descriptive
+    statistics
+  \item \strong{max}: Maximum plausible p-value across all rounding-consistent
+    parameter combinations
 }
+
+When reported p-values are supplied to \code{t_slicer()}, the consistency
+fields (\code{Student} and \code{Welch}) indicate whether the reported
+p-interval overlaps with the corresponding test's plausibility interval.
+}
+\section{Fields}{
+
+\describe{
+  \item{\code{Student_RIVETS}}{Numeric vector of p-values computed from
+    reported descriptive statistics using Student's t-test (pooled variance)}
+  \item{\code{Welch_RIVETS}}{Numeric vector of p-values computed from
+    reported descriptive statistics using Welch's t-test (unequal variance)}
+  \item{\code{Student_min}}{Numeric vector of minimum plausible p-values
+    for Student's t-test}
+  \item{\code{Student_max}}{Numeric vector of maximum plausible p-values
+    for Student's t-test}
+  \item{\code{Welch_min}}{Numeric vector of minimum plausible p-values
+    for Welch's t-test}
+  \item{\code{Welch_max}}{Numeric vector of maximum plausible p-values
+    for Welch's t-test}
+  \item{\code{Student}}{Logical vector indicating consistency with Student's
+    t-test. \code{TRUE} = reported p-interval overlaps plausibility interval,
+    \code{FALSE} = no overlap, \code{NA} = no reported p-value}
+  \item{\code{Welch}}{Logical vector indicating consistency with Welch's
+    t-test (same interpretation as \code{Student})}
+  \item{\code{Plots}}{List of \pkg{ggplot2} objects, one per case, visualizing
+    p-value ranges and reported p-intervals (when available)}
+}
+}
+
+\section{Methods}{
+
+\describe{
+  \item{\code{new(Student_RIVETS, Welch_RIVETS, Student_min, Student_max,
+    Welch_min, Welch_max, Student, Welch, Plots)}}{Constructor that initializes
+    a new \code{T_slicer_res} object. All arguments are optional and default
+    to \code{NULL}}
+  \item{\code{print(n = NULL)}}{Print results to console. If \code{n} is
+    \code{NULL} (default), prints all cases; if \code{n} is an integer or
+    vector, prints only the specified case(s)}
+  \item{\code{plot(n = NULL)}}{Display diagnostic plots. If \code{n} is
+    \code{NULL} (default), arranges all plots in a grid using
+    \code{\link[cowplot]{plot_grid}}; if \code{n} is a single integer,
+    displays only that case's plot}
+}
+}
+
 \examples{
-## Manually construct (rare; normally returned by t_slicer)
+# Typical usage: returned automatically by t_slicer()
+result <- t_slicer(m1 = "1.20", s1 = "1.2", n1 = 60,
+                   m2 = "2.10", s2 = "2.5", n2 = 30,
+                   p = ".08")
+print(result)
+\dontrun{
+plot(result)
+}
+
+# Manual construction (rarely needed)
 tr <- T_slicer_res$new(
-Student_RIVETS = c(0.12, 0.05),
-Welch_RIVETS = c(0.11, 0.06),
-Student_min = c(0.08, 0.02),
-Student_max = c(0.20, 0.10),
-Welch_min = c(0.07, 0.03),
-Welch_max = c(0.22, 0.12),
-Student = c(TRUE, FALSE),
-Welch = c(TRUE, FALSE),
-Plots = list(NULL, NULL)
+  Student_RIVETS = c(0.12, 0.05),
+  Welch_RIVETS = c(0.11, 0.06),
+  Student_min = c(0.08, 0.02),
+  Student_max = c(0.20, 0.10),
+  Welch_min = c(0.07, 0.03),
+  Welch_max = c(0.22, 0.12),
+  Student = c(TRUE, FALSE),
+  Welch = c(TRUE, FALSE),
+  Plots = list(NULL, NULL)
 )
-print(tr) # pretty console output
-\dontrun{ plot(tr) } # display diagnostic plots (requires ggplot2 / cowplot)
 
 }
 \seealso{
-\code{\link{t_slicer}}, \code{\link{validate_descriptive}},
-\code{\link{validate_p}}
+\code{\link{t_slicer}} for generating these results,
+  \code{\link{validate_descriptive}} and \code{\link{validate_p}} for
+  the underlying validation functions
 }
-\keyword{class}
+\keyword{classes}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{

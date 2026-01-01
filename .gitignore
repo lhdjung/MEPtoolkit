@@ -9,3 +9,4 @@
 
 # (optional) catch nested .Rproj.user just in case
 **/.Rproj.user/
+inst/doc

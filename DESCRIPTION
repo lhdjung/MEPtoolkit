@@ -24,6 +24,8 @@ Imports:
     rlang,
     BSDA,
     ggnewscale,
-    cowplot
+    cowplot,
+    showtext,
+    sysfonts
 Config/testthat/edition: 3
 VignetteBuilder: knitr

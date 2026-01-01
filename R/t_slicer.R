@@ -1,307 +1,307 @@
-#' R6 class: container for t_slicer() results
+#' Results Container for Two-Sample t-Test Consistency Analysis
 #'
-#' Lightweight R6 container that holds the outputs produced by
-#' \code{\link{t_slicer}}. The object stores per-case p-value summaries for
-#' Student (pooled-variance) and Welch (unequal-variance) two-sample
-#' t-tests, boolean consistency flags (if p-values were provided),
-#' and diagnostic \pkg{ggplot2} plots.
+#' @description
+#' An R6 class that stores results from \code{\link{t_slicer}}, including
+#' p-value ranges for Student's (pooled-variance) and Welch's (unequal-variance)
+#' two-sample t-tests, consistency flags when reported p-values are provided,
+#' and diagnostic visualizations.
+#'
+#' @details
+#' This container holds three p-value summaries per test type:
+#' \itemize{
+#'   \item \strong{min}: Minimum plausible p-value across all rounding-consistent
+#'     parameter combinations
+#'   \item \strong{RIVETS}: P-value computed from the reported (central) descriptive
+#'     statistics
+#'   \item \strong{max}: Maximum plausible p-value across all rounding-consistent
+#'     parameter combinations
+#' }
+#'
+#' When reported p-values are supplied to \code{t_slicer()}, the consistency
+#' fields (\code{Student} and \code{Welch}) indicate whether the reported
+#' p-interval overlaps with the corresponding test's plausibility interval.
+#'
+#' @section Fields:
+#' \describe{
+#'   \item{\code{Student_RIVETS}}{Numeric vector of p-values computed from
+#'     reported descriptive statistics using Student's t-test (pooled variance)}
+#'   \item{\code{Welch_RIVETS}}{Numeric vector of p-values computed from
+#'     reported descriptive statistics using Welch's t-test (unequal variance)}
+#'   \item{\code{Student_min}}{Numeric vector of minimum plausible p-values
+#'     for Student's t-test}
+#'   \item{\code{Student_max}}{Numeric vector of maximum plausible p-values
+#'     for Student's t-test}
+#'   \item{\code{Welch_min}}{Numeric vector of minimum plausible p-values
+#'     for Welch's t-test}
+#'   \item{\code{Welch_max}}{Numeric vector of maximum plausible p-values
+#'     for Welch's t-test}
+#'   \item{\code{Student}}{Logical vector indicating consistency with Student's
+#'     t-test. \code{TRUE} = reported p-interval overlaps plausibility interval,
+#'     \code{FALSE} = no overlap, \code{NA} = no reported p-value}
+#'   \item{\code{Welch}}{Logical vector indicating consistency with Welch's
+#'     t-test (same interpretation as \code{Student})}
+#'   \item{\code{Plots}}{List of \pkg{ggplot2} objects, one per case, visualizing
+#'     p-value ranges and reported p-intervals (when available)}
+#' }
+#'
+#' @section Methods:
+#' \describe{
+#'   \item{\code{new(Student_RIVETS, Welch_RIVETS, Student_min, Student_max,
+#'     Welch_min, Welch_max, Student, Welch, Plots)}}{Constructor that initializes
+#'     a new \code{T_slicer_res} object. All arguments are optional and default
+#'     to \code{NULL}}
+#'   \item{\code{print(n = NULL)}}{Print results to console. If \code{n} is
+#'     \code{NULL} (default), prints all cases; if \code{n} is an integer or
+#'     vector, prints only the specified case(s)}
+#'   \item{\code{plot(n = NULL)}}{Display diagnostic plots. If \code{n} is
+#'     \code{NULL} (default), arranges all plots in a grid using
+#'     \code{\link[cowplot]{plot_grid}}; if \code{n} is a single integer,
+#'     displays only that case's plot}
+#' }
+#'
+#' @examples
+#' # Typical usage: returned automatically by t_slicer()
+#' result <- t_slicer(m1 = "1.20", s1 = "1.2", n1 = 60,
+#'                    m2 = "2.10", s2 = "2.5", n2 = 30,
+#'                    p = ".08")
+#' print(result)
+#' \dontrun{
+#' plot(result)
+#' }
+#'
+#' # Manual construction (rarely needed)
+#' tr <- T_slicer_res$new(
+#'   Student_RIVETS = c(0.12, 0.05),
+#'   Welch_RIVETS = c(0.11, 0.06),
+#'   Student_min = c(0.08, 0.02),
+#'   Student_max = c(0.20, 0.10),
+#'   Welch_min = c(0.07, 0.03),
+#'   Welch_max = c(0.22, 0.12),
+#'   Student = c(TRUE, FALSE),
+#'   Welch = c(TRUE, FALSE),
+#'   Plots = list(NULL, NULL)
+#' )
+#'
+#' @seealso \code{\link{t_slicer}} for generating these results,
+#'   \code{\link{validate_descriptive}} and \code{\link{validate_p}} for
+#'   the underlying validation functions
 #'
 #' @name T_slicer_res
 #' @docType class
-#' @keywords class
-#'
-#' @format An R6 object with the following public fields and methods:
-#' \describe{
-#' \item{\code{Student_RIVETS}}{Numeric vector. Per-case p-values computed
-#' from the reported (central) descriptive values for the Student (pooled)
-#' t-test.}
-#' \item{\code{Welch_RIVETS}}{Numeric vector. Per-case p-values computed
-#' from the reported (central) descriptive values for the Welch
-#' (unequal-variance) t-test.}
-#' \item{\code{Student_min}}{Numeric vector. Per-case minimum plausible
-#' p-value for the Student test obtained by enumerating rounding-
-#' consistent alternatives.}
-#' \item{\code{Student_max}}{Numeric vector. Per-case maximum plausible
-#' p-value for the Student test.}
-#' \item{\code{Welch_min}}{Numeric vector. Per-case minimum plausible
-#' p-value for the Welch test.}
-#' \item{\code{Welch_max}}{Numeric vector. Per-case maximum plausible
-#' p-value for the Welch test.}
-#' \item{\code{Student}}{Logical vector. Per-case indicator whether the
-#' reported p-interval (if supplied to \code{t_slicer}) overlaps the
-#' plausibility interval for the Student test (\code{TRUE} = consistent,
-#' \code{FALSE} = inconsistent, \code{NA} = no reported p).}
-#' \item{\code{Welch}}{Logical vector. Analogous indicator for the Welch
-#' test.}
-#' \item{\code{Plots}}{List of \pkg{ggplot2} objects (one per case). Each
-#' plot visualises the min/mid/max p-values for Student and Welch and,
-#' when available, the reported p-interval.}
-#' \item{\code{initialize(Student_RIVETS, Welch_RIVETS, Student_min,
-#' Student_max, Welch_min, Welch_max, Student, Welch, Plots)}}{Constructor.
-#' All arguments are optional; unspecified fields remain \code{NULL}.}
-#' \item{\code{print(n = NULL)}}{Pretty-print results to the console. If
-#' \code{n} is \code{NULL} (default) prints all rows; if \code{n} is an
-#' integer or integer vector prints only the specified row(s).}
-#' \item{\code{plot(n = NULL)}}{Plot method. If \code{n} is \code{NULL}
-#' (default) arranges all case plots into a grid (uses
-#' \pkg{cowplot}::\code{plot_grid}); if \code{n} is a single integer it
-#' draws the plot for that case.}
-#' }
-#'
-#' @details
-#' Typical usage: \code{t_slicer()} constructs and returns an instance of
-#' \code{T_slicer_res}. The three-element p-value summaries follow the
-#' package convention: \code{min} (extreme lower), \code{RIVETS} (computed from
-#' reported central values), and \code{max} (extreme upper). The boolean fields
-#' \code{Student} and \code{Welch} indicate whether the reported p-interval
-#' overlaps the corresponding test's plausible p-interval.
-#'
-#' The \code{Plots} field contains \pkg{ggplot2} objects; printing the object
-#' does not automatically draw plots (use \code{plot(obj)} or call
-#' \code{t_slicer(..., output = TRUE)} to display graphs).
-#'
-#' @param Student_RIVETS Numeric vector to initialise \code{Student_RIVETS}.
-#' @param Welch_RIVETS Numeric vector to initialise \code{Welch_RIVETS}.
-#' @param Student_min Numeric vector to initialise \code{Student_min}.
-#' @param Student_max Numeric vector to initialise \code{Student_max}.
-#' @param Welch_min Numeric vector to initialise \code{Welch_min}.
-#' @param Welch_max Numeric vector to initialise \code{Welch_max}.
-#' @param Student Logical vector to initialise \code{Student}.
-#' @param Welch Logical vector to initialise \code{Welch}.
-#' @param Plots List of \pkg{ggplot2} objects to initialise \code{Plots}.
-#' @return An R6 object of class \code{T_slicer_res} for programmatic access and
-#' human inspection (via \code{print} and \code{plot}).
-#'
-#' @examples
-#' ## Manually construct (rare; normally returned by t_slicer)
-#' tr <- T_slicer_res$new(
-#' Student_RIVETS = c(0.12, 0.05),
-#' Welch_RIVETS = c(0.11, 0.06),
-#' Student_min = c(0.08, 0.02),
-#' Student_max = c(0.20, 0.10),
-#' Welch_min = c(0.07, 0.03),
-#' Welch_max = c(0.22, 0.12),
-#' Student = c(TRUE, FALSE),
-#' Welch = c(TRUE, FALSE),
-#' Plots = list(NULL, NULL)
-#' )
-#' print(tr) # pretty console output
-#' \dontrun{ plot(tr) } # display diagnostic plots (requires ggplot2 / cowplot)
-#'
-#' @seealso \code{\link{t_slicer}}, \code{\link{validate_descriptive}},
-#' \code{\link{validate_p}}
-#'
+#' @keywords classes
 #' @importFrom cowplot plot_grid
 #' @export
 T_slicer_res <- R6::R6Class("T_slicer_res",
-            public = list(
-              #' @field Student_RIVETS p-value(s) from Student's t-test using
-              #' RIVETS stats
-              Student_RIVETS = NULL,
-              #' @field Welch_RIVETS p-value(s) from Welch's t-test using
-              #' RIVETS stats
-              Welch_RIVETS = NULL,
-              #' @field Student_min p-value(s) from Student's t-test using
-              #' minimum possible values
-              Student_min = NULL,
-              #' @field Student_max p-value(s) from Student's t-test using
-              #' maximum possible values
-              Student_max = NULL,
-              #' @field Welch_min p-value(s) from Welch's t-test using
-              #' minimum possible values
-              Welch_min = NULL,
-              #' @field Welch_max p-value(s) from Welch's t-test using
-              #' maximum possible values
-              Welch_max = NULL,
-              #' @field Student are statistics consistent with a Student's t-test?
-              Student = NULL,
-              #' @field Welch are statistics consistent with a Welch's t-test?
-              Welch = NULL,
-              #' @field Plots the resulting plot
-              Plots = NULL,
-              #' @description
-              #' Create a new T_slicer_res object
-              #' @param Student_RIVETS Numeric vector to initialise \code{Student_RIVETS}.
-              #' @param Welch_RIVETS Numeric vector to initialise \code{Welch_RIVETS}.
-              #' @param Student_min Numeric vector to initialise \code{Student_min}.
-              #' @param Student_max Numeric vector to initialise \code{Student_max}.
-              #' @param Welch_min Numeric vector to initialise \code{Welch_min}.
-              #' @param Welch_max Numeric vector to initialise \code{Welch_max}.
-              #' @param Student Logical vector to initialise \code{Student}.
-              #' @param Welch Logical vector to initialise \code{Welch}.
-              #' @param Plots List of \pkg{ggplot2} objects to initialise \code{Plots}.
-              #' @return An R6 object of class \code{T_slicer_res} for programmatic access and
-              #' human inspection (via \code{print} and \code{plot}).
-              initialize = function(Student_RIVETS, Welch_RIVETS, Student_min,
-                                    Student_max, Welch_min, Welch_max,
-                                    Student, Welch, Plots) {
-                self$Student_RIVETS <- Student_RIVETS
-                self$Welch_RIVETS <- Welch_RIVETS
-                self$Student_min <- Student_min
-                self$Student_max <- Student_max
-                self$Welch_min <- Welch_min
-                self$Welch_max <- Welch_max
-                self$Student <- Student
-                self$Welch <- Welch
-                self$Plots <- Plots
-              },
-              #' @description
-              #' Pretty printing of t_slicer results
-              #' @param n if NULL (default), outputs results for all
-              #' lines. Otherwise, only the one from the specified line.
-              print = function(n=NULL) {
-                cat("Results from t_slicer\n")
-                if(is.null(n) || n>length(self$Student) || n<=0)
-                  n <- 1:(length(self$Student))
-                for(i in n) {
-                  cat("\n\n--- Line", i,"---\n")
-                  cat("---------------------------------------\n")
-                  cat("RIVETS p values:\n")
-                  cat("      Student: p =", self$Student_RIVETS[i], "\n")
-                  cat("      Welch:   p =", self$Welch_RIVETS[i], "\n\n")
-                  cat("Min/max p values:\n")
-                  cat("  - Minimum\n")
-                  cat("      Student: p =", self$Student_min[i], "\n")
-                  cat("      Welch:   p =", self$Welch_min[i], "\n\n")
-                  cat("  - Maximum\n")
-                  cat("      Student: p =", self$Student_max[i], "\n")
-                  cat("      Welch:   p =", self$Welch_max[i], "\n")
-                  cat("---------------------------------------\n")
-                  cat("Student's t:  ", if(is.na(self$Student[i])) "N/A\n"
-                      else if (self$Student[i] == TRUE) "Consistent\n"
-                      else "Inconsistent\n")
-                  cat("Welch's t:    ", if(is.na(self$Welch[i])) "N/A\n"
-                      else if (self$Welch[i] == TRUE) "Consistent\n"
-                      else "Inconsistent\n")
-                }
-              },
-              #' @description
-              #' Plots the results.
-              #' @param n if NULL (default), plots a grid of all graphs for all
-              #' lines. Otherwise, plots the graph for the specified line.
-              #' @importFrom cowplot plot_grid
-              plot = function(n = NULL) {
-                if(is.null(n) || n>length(self$Student) || n<=0)
-                  plot_grid(plotlist = self$Plots, ncol=2)
-                else {
-                  plot(self$Plots[[n]])
-                }
-              }
-              )
-            )
+                            public = list(
+                              #' @field Student_RIVETS p-value(s) from Student's t-test using
+                              #' RIVETS stats
+                              Student_RIVETS = NULL,
+                              #' @field Welch_RIVETS p-value(s) from Welch's t-test using
+                              #' RIVETS stats
+                              Welch_RIVETS = NULL,
+                              #' @field Student_min p-value(s) from Student's t-test using
+                              #' minimum possible values
+                              Student_min = NULL,
+                              #' @field Student_max p-value(s) from Student's t-test using
+                              #' maximum possible values
+                              Student_max = NULL,
+                              #' @field Welch_min p-value(s) from Welch's t-test using
+                              #' minimum possible values
+                              Welch_min = NULL,
+                              #' @field Welch_max p-value(s) from Welch's t-test using
+                              #' maximum possible values
+                              Welch_max = NULL,
+                              #' @field Student are statistics consistent with a Student's t-test?
+                              Student = NULL,
+                              #' @field Welch are statistics consistent with a Welch's t-test?
+                              Welch = NULL,
+                              #' @field Plots the resulting plot
+                              Plots = NULL,
+                              #' @description
+                              #' Create a new T_slicer_res object
+                              #' @param Student_RIVETS Numeric vector to initialise \code{Student_RIVETS}.
+                              #' @param Welch_RIVETS Numeric vector to initialise \code{Welch_RIVETS}.
+                              #' @param Student_min Numeric vector to initialise \code{Student_min}.
+                              #' @param Student_max Numeric vector to initialise \code{Student_max}.
+                              #' @param Welch_min Numeric vector to initialise \code{Welch_min}.
+                              #' @param Welch_max Numeric vector to initialise \code{Welch_max}.
+                              #' @param Student Logical vector to initialise \code{Student}.
+                              #' @param Welch Logical vector to initialise \code{Welch}.
+                              #' @param Plots List of \pkg{ggplot2} objects to initialise \code{Plots}.
+                              #' @return An R6 object of class \code{T_slicer_res} for programmatic access and
+                              #' human inspection (via \code{print} and \code{plot}).
+                              initialize = function(Student_RIVETS, Welch_RIVETS, Student_min,
+                                                    Student_max, Welch_min, Welch_max,
+                                                    Student, Welch, Plots) {
+                                self$Student_RIVETS <- Student_RIVETS
+                                self$Welch_RIVETS <- Welch_RIVETS
+                                self$Student_min <- Student_min
+                                self$Student_max <- Student_max
+                                self$Welch_min <- Welch_min
+                                self$Welch_max <- Welch_max
+                                self$Student <- Student
+                                self$Welch <- Welch
+                                self$Plots <- Plots
+                              },
+                              #' @description
+                              #' Pretty printing of t_slicer results
+                              #' @param n if NULL (default), outputs results for all
+                              #' lines. Otherwise, only the one from the specified line.
+                              print = function(n=NULL) {
+                                cat("Results from t_slicer\n")
+                                if(is.null(n) || n>length(self$Student) || n<=0)
+                                  n <- 1:(length(self$Student))
+                                for(i in n) {
+                                  cat("\n\n--- Line", i,"---\n")
+                                  cat("---------------------------------------\n")
+                                  cat("RIVETS p values:\n")
+                                  cat("      Student: p =", self$Student_RIVETS[i], "\n")
+                                  cat("      Welch:   p =", self$Welch_RIVETS[i], "\n\n")
+                                  cat("Min/max p values:\n")
+                                  cat("  - Minimum\n")
+                                  cat("      Student: p =", self$Student_min[i], "\n")
+                                  cat("      Welch:   p =", self$Welch_min[i], "\n\n")
+                                  cat("  - Maximum\n")
+                                  cat("      Student: p =", self$Student_max[i], "\n")
+                                  cat("      Welch:   p =", self$Welch_max[i], "\n")
+                                  cat("---------------------------------------\n")
+                                  cat("Student's t:  ", if(is.na(self$Student[i])) "N/A\n"
+                                      else if (self$Student[i] == TRUE) "Consistent\n"
+                                      else "Inconsistent\n")
+                                  cat("Welch's t:    ", if(is.na(self$Welch[i])) "N/A\n"
+                                      else if (self$Welch[i] == TRUE) "Consistent\n"
+                                      else "Inconsistent\n")
+                                }
+                              },
+                              #' @description
+                              #' Plots the results.
+                              #' @param n if NULL (default), plots a grid of all graphs for all
+                              #' lines. Otherwise, plots the graph for the specified line.
+                              #' @importFrom cowplot plot_grid
+                              plot = function(n = NULL) {
+                                if(is.null(n) || n>length(self$Student) || n<=0)
+                                  plot_grid(plotlist = self$Plots, ncol=2)
+                                else {
+                                  plot(self$Plots[[n]])
+                                }
+                              }
+                            )
+)
 
-#' Compute Student and Welch t-tests using descriptive stats, and compare to reported results
+#' Test Consistency of Reported t-Test Results with Descriptive Statistics
 #'
-#' Evaluate which two-sample t-test (Student's pooled-variance or Welch's
-#' unequal-variance) is consistent with reported summary statistics and — if
-#' provided — a reported p-value. The function accounts for rounding
-#' imprecision by working with intervals of possible reported values and
-#' enumerating the plausible combinations to produce minimum/maximum possible
-#' p-values for each test, plus the p-value computed from the reported
-#' (central) values ("RIVETS").
+#' @description
+#' Determines which two-sample t-test variant (Student's pooled-variance or
+#' Welch's unequal-variance) is consistent with reported summary statistics.
+#' When p-values are provided, the function checks whether they align with
+#' either test. The analysis accounts for rounding imprecision by computing
+#' plausible intervals around reported values.
 #'
-#' t_slicer takes as input 2 sets of descriptive statistics (means and sds)
-#' and (optionally) reported p values. It computes the results of the Student's
-#' and Welch's t tests, and compares the resulting with the reported p values
-#' (if provided) to see which test(s) - if any - match(es)
+#' @param m1 Character scalar or vector. Reported mean(s) for group 1. Can be
+#'   formatted numbers (e.g., \code{"1.23"}) that may represent rounded values
+#' @param s1 Character scalar or vector. Reported standard deviation(s) for
+#'   group 1 (same format as \code{m1})
+#' @param n1 Numeric scalar or vector. Sample size(s) for group 1 (integers ≥ 2)
+#' @param m2 Character scalar or vector. Reported mean(s) for group 2 (same
+#'   format as \code{m1})
+#' @param s2 Character scalar or vector. Reported standard deviation(s) for
+#'   group 2 (same format as \code{s1})
+#' @param n2 Numeric scalar or vector. Sample size(s) for group 2 (integers ≥ 2)
+#' @param p Character scalar or vector, optional. Reported p-value(s). Can be
+#'   \code{NA} or omitted when no p-value is reported. Default is \code{NULL}
+#' @param data Data frame, optional. If provided, the other arguments are
+#'   interpreted as column names (quoted or unquoted) within \code{data}
+#' @param output Logical. If \code{TRUE}, prints a summary and displays
+#'   diagnostic plots before returning the result object. Default is \code{FALSE}
 #'
-#' This is useful when a paper or report gives only means, standard deviations
-#' and sample sizes (and perhaps a rounded p-value) and you want to check
-#' which model of the t-test the reported result is compatible with. It is also
-#' useful as an initial calculation leading to a \code{carlisle} function call,
-#' in case the p-values were not given.
+#' @return An object of class \code{\link{T_slicer_res}} containing:
+#'   \describe{
+#'     \item{Student_min, Student_RIVETS, Student_max}{Minimum, reported-value,
+#'       and maximum plausible p-values for Student's t-test (pooled variance)}
+#'     \item{Welch_min, Welch_RIVETS, Welch_max}{Analogous p-values for
+#'       Welch's t-test (unequal variance)}
+#'     \item{Student}{Logical vector indicating whether reported p-value is
+#'       consistent with Student's t-test (\code{TRUE} = consistent,
+#'       \code{FALSE} = inconsistent, \code{NA} = no reported p)}
+#'     \item{Welch}{Logical vector indicating consistency with Welch's t-test
+#'       (same interpretation as \code{Student})}
+#'     \item{Plots}{List of \pkg{ggplot2} objects visualizing p-value ranges
+#'       and reported p-intervals for each case}
+#'   }
 #'
-#' @param m1 Character scalar/vector. Reported mean(s) for group 1. Values may
-#' be formatted numbers (e.g. "1.23") and may represent rounded reports;
-#' the function will construct a plausible interval around the reported value.
-#' @param s1 Character scalar/vector. Reported standard deviation(s) for group 1
-#' (same format and interpretation as \code{m1}).
-#' @param n1 Numeric scalar/vector. Sample size(s) for group 1 (one integer per
-#' case).
-#' @param m2 Character scalar/vector. Reported mean(s) for group 2 (same
-#' conventions as \code{m1}).
-#' @param s2 Character scalar/vector. Reported standard deviation(s) for group 2
-#' (same conventions as \code{s1}).
-#' @param n2 Numeric scalar/vector. Sample size(s) for group 2 (one integer per
-#' case).
-#' @param p Optional character scalar/vector. Reported p-value(s). If
-#' provided the function constructs an interval that reflects rounding
-#' precision and checks whether the reported interval overlaps the test
-#' interval(s). Use \code{NA} (or omit) when no p is reported.
-#' @param data Optional dataframe. If supplied, \code{m1}, \code{s1}, \code{n1},
-#' \code{m2}, \code{s2}, \code{n2} and \code{p} are interpreted as column
-#' names (unquoted or quoted) and resolved inside \code{data}
-#' @param output Logical scalar (default \code{FALSE}). When \code{TRUE} the
-#' function prints a human-readable summary and plots the diagnostic plot(s)
-#' before returning the result object.
-#' @return An object of class \code{T_slicer_res} (an R6 result container). The
-#' object contains the following components (each a vector of length equal to
-#' the number of input cases):
-#' \itemize{
-#' \item \code{Student_min}, \code{Student_RIVETS}, \code{Student_max}:
-#' minimum, reported (RIVETS), and maximum plausible p-values for the
-#' Student (pooled variance, \code{var.equal = TRUE}) t-test.
-#' \item \code{Welch_min}, \code{Welch_RIVETS}, \code{Welch_max}:
-#' analogous quantities for the Welch (unequal-variance) t-test.
-#' \item \code{Student}, \code{Welch}: logical vectors indicating whether
-#' the reported p-interval (if supplied) is consistent with the
-#' corresponding test (TRUE = overlap; FALSE = no overlap; NA = no
-#' reported p).
-#' \item \code{Plots}: list of \pkg{ggplot2} objects (one per case)
-#' visualising the min/mid/max p-values and, when available, the
-#' reported-p interval.
-#' }
-#' @details Implementation notes:
+#' @details
+#' The function performs the following steps for each case:
 #' \enumerate{
-#' \item Each reported descriptive value (means and SDs) is passed through
-#' \code{\link{validate_descriptive}} which returns a \emph{minimum},
-#' \emph{original} and \emph{maximum} candidate — reflecting the possible
-#' values consistent with the reported (rounded) number.
-#' \item The function forms the (Cartesian) grid of plausible combinations of
-#' the minimum/maximum candidates for the two means and two SDs. For every
-#' combination it computes two-sample t-test p-values using
-#' \pkg{BSDA}::\code{tsum.test} with \code{var.equal = TRUE} (Student) and
-#' \code{var.equal = FALSE} (Welch). The minimum and maximum p-values
-#' across the grid are returned together with the p-value computed
-#' from the reported (central) values (RIVETS).
-#' \item If a reported p-value is supplied, it is interpreted as an
-#' interval (via \code{\link{validate_p}}) and compared to the test
-#' intervals; the boolean pass/fail flags indicate overlap.
-#' \item A diagnostic plot is produced for each case: points show the
-#' (min, mid, max) p-values for each test and, when applicable, a
-#' shaded rectangle visualises the reported p-interval.
+#'   \item Converts each reported descriptive statistic (means and SDs) into a
+#'     plausible interval using \code{\link{validate_descriptive}}, which
+#'     accounts for rounding precision
+#'   \item Generates all combinations of minimum/maximum values for the four
+#'     descriptive statistics (two means, two SDs)
+#'   \item Computes two-sample t-test p-values for each combination using
+#'     \code{\link[BSDA]{tsum.test}} with both \code{var.equal = TRUE}
+#'     (Student's t-test) and \code{var.equal = FALSE} (Welch's t-test)
+#'   \item Records the minimum and maximum p-values across all combinations,
+#'     plus the p-value computed from the reported (central) values (RIVETS)
+#'   \item If a reported p-value is provided, converts it to an interval via
+#'     \code{\link{validate_p}} and checks whether it overlaps with the
+#'     plausibility intervals for each test
+#'   \item Creates a diagnostic plot showing the p-value ranges and, when
+#'     applicable, the reported p-interval as a colored rectangle (green for
+#'     consistent, red for inconsistent)
 #' }
 #'
-#' @section Assumptions and limitations:
+#' This function is particularly useful for:
 #' \itemize{
-#' \item The numeric sample sizes \code{n1} and \code{n2} should be integers
-#' ≥2. Very small sample sizes (e.g. n<5) make the t-test
-#' approximation unstable and increase sensitivity to rounding.
-#' \item The function depends on \pkg{BSDA}::\code{tsum.test} for fast
-#' two-sample t-test computation from summary statistics; its
-#' results follow the same conventions as that function.
+#'   \item Verifying which t-test variant was likely used in published analyses
+#'   \item Detecting potential errors in reported statistics
+#'   \item Preparing inputs for more detailed consistency analyses (e.g.,
+#'     \code{carlisle} tests)
 #' }
-#' @seealso \code{\link{validate_descriptive}}, \code{\link{validate_p}},
-#' \pkg{BSDA}::\code{tsum.test}
-#' @examples
-#' ## Single reported comparison (with a reported p-value)
-#' t_slicer(m1 = "1.20", s1 = "1.2", n1 = 60,
-#' m2 = "2.10", s2 = "2.5", n2 = 30,
-#' p = ".08", output = TRUE)
 #'
-#' ## Multiple rows supplied in a data.frame (columns may be quoted names)
-#' df <- data.frame(
-#' m1 = c("1.20", "1.25"),
-#' s1 = c("1.2", "1.25"),
-#' n1 = c(60, 60),
-#' m2 = c("2.10", "2.15"),
-#' s2 = c("2.5", "2.55"),
-#' n2 = c(30, 30),
-#' p = c(NA, NA)
+#' @section Assumptions and Limitations:
+#' \itemize{
+#'   \item Sample sizes should be integers ≥ 2. Very small samples (n < 5)
+#'     increase sensitivity to rounding and may produce unstable results
+#'   \item All reported values are assumed to be rounded to the precision
+#'     indicated by their string representation
+#'   \item The function assumes independent samples and approximately normal
+#'     distributions within groups (standard t-test assumptions)
+#' }
+#'
+#' @examples
+#' # Single comparison with reported p-value
+#' result <- t_slicer(
+#'   m1 = "1.20", s1 = "1.2", n1 = 60,
+#'   m2 = "2.10", s2 = "2.5", n2 = 30,
+#'   p = ".08",
+#'   output = TRUE
 #' )
-#' t_slicer(m1 = m1, s1 = s1, n1 = n1,
-#' m2 = m2, s2 = s2, n2 = n2,
-#' data = df, output = TRUE)
+#'
+#' # Multiple comparisons from a data frame
+#' df <- data.frame(
+#'   m1 = c("1.20", "1.25"),
+#'   s1 = c("1.2", "1.25"),
+#'   n1 = c(60, 60),
+#'   m2 = c("2.10", "2.15"),
+#'   s2 = c("2.5", "2.55"),
+#'   n2 = c(30, 30),
+#'   p = c(".08", NA)
+#' )
+#' result <- t_slicer(
+#'   m1 = m1, s1 = s1, n1 = n1,
+#'   m2 = m2, s2 = s2, n2 = n2,
+#'   p = p, data = df
+#' )
+#' print(result)
+#' \dontrun{
+#' plot(result)
+#' }
+#'
+#' @seealso
+#'   \code{\link{T_slicer_res}} for the result object structure,
+#'   \code{\link{validate_descriptive}} and \code{\link{validate_p}} for
+#'   validation functions,
+#'   \code{\link[BSDA]{tsum.test}} for the underlying t-test implementation
 #'
 #' @import ggplot2
 #' @importFrom BSDA tsum.test
@@ -324,7 +324,7 @@ t_slicer <- function (m1, s1, n1, m2, s2, n2, p = NULL, data = NULL, output = FA
   m2 <- validate_descriptive(m2)
   s2 <- validate_descriptive(s2)
   p <- if(!is.null(p)) validate_p(p, allow_na = TRUE)
-        else validate_p(rep(NA_character_, L), allow_na = TRUE)
+  else validate_p(rep(NA_character_, L), allow_na = TRUE)
 
   plots <- list()
   Student_pass <- c()
@@ -408,19 +408,18 @@ t_slicer <- function (m1, s1, n1, m2, s2, n2, p = NULL, data = NULL, output = FA
       Student_pass <- c(Student_pass, NA)
       Welch_pass <- c(Welch_pass, NA)
     }
-
     plots[[j]] <- ggplot(plot_data) +
       geom_point(aes(x="Welch", y=.data$Welch, shape=.data$Value, fill=.data$Value), size = 5) +
       geom_point(aes(x="Student", y=.data$Student, shape=.data$Value, fill=.data$Value), size = 5) +
-      theme_minimal()  +
+      theme_minimal() +
       labs(title = "T-Test Results", y = "Potential p-values", x = "Tests") +
       theme(axis.text = element_text(size=12),
             axis.title = element_text(size=13, face="bold")) +
       scale_fill_manual(
-        name= "Value",
+        name = "Value",
         values = c('Minimum' = "red", 'Mid' = "blue", 'Maximum' = "red")) +
       scale_shape_manual(
-        name="Value",
+        name = "Value",
         values = c('Minimum' = 24, 'Mid' = 21, 'Maximum' = 25))
     if(!is.na(p_num)) {
       plots[[j]] <- plots[[j]] + new_scale("fill") +

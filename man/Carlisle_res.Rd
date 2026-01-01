@@ -3,73 +3,79 @@
 \docType{class}
 \name{Carlisle_res}
 \alias{Carlisle_res}
-\title{R6 class: results of a Carlisle aggregation}
-\format{
-An R6 object with three public fields and two public methods:
-\describe{
-\item{\code{Student}}{Numeric vector of length three, \code{c(min, RIVETS, max)},
-giving the minimum, reported (RIVETS) and maximum combined p-values
-computed when aggregating the Student (pooled-variance) test p-values.
-\code{NULL} when the object was built from provided p-values.}
-\item{\code{Welch}}{Numeric vector of length three, \code{c(min, RIVETS, max)},
-giving the analogue for Welch (unequal-variance) test p-values.
-\code{NULL} when the object was built from provided p-values.}
-\item{\code{Provided_p}}{Numeric vector of length three, \code{c(min, RIVETS, max)},
-giving the combined p-values obtained when the object was created
-directly from a vector of reported p-values. \code{NULL} when the
-object was created from a \code{T_slicer_res} result.}
-\item{\code{initialize(Student, Welch, Provided_p)}}{Constructor. Each
-argument is optional; unspecified fields remain \code{NULL}.}
-\item{\code{print()}}{Nicely formatted console representation of the
-stored results (prints RIVETS value plus min/max combinations).}
-}
-}
-\value{
-An R6 object of class \code{Carlisle_res} with fields described above
-and an S3-friendly \code{print} method implemented as an R6 public method.
-}
+\title{Results Container for Carlisle Test of Baseline P-Value Aggregation}
 \description{
-Lightweight R6 container used to hold and pretty-print the output of
-\code{\link{carlisle}}. The object stores up to two sets of aggregated
-results (one per t-test assumption: Student and Welch) or a single set when
-the aggregation was performed directly on a vector of reported p-values.
+An R6 class that stores results from \code{\link{carlisle}}, which aggregates
+multiple p-values to test for unusual concentration. The container holds
+combined p-value ranges accounting for rounding uncertainty.
 }
 \details{
-Object container for results produced by \code{\link{carlisle}}.
-
-
-The three-element vectors stored in \code{Student}, \code{Welch} and
-\code{Provided_p} follow the convention
-\code{c(min_combined_p, RIVETS_combined_p, max_combined_p)}:
+This object stores aggregated p-values in three-element vectors following
+the format \code{c(min, RIVETS, max)}:
 \itemize{
-\item \strong{min_combined_p}: minimum combined p-value across the
-enumerated rounding-consistent alternatives;
-\item \strong{RIVETS_combined_p}: combined p-value computed from
-the central/reported values (the 'RIVETS' case in the package);
-\item \strong{max_combined_p}: maximum combined p-value across the
-enumerated alternatives.
+  \item \strong{min}: Minimum combined p-value across all rounding-consistent
+    parameter combinations
+  \item \strong{RIVETS}: Combined p-value computed from the reported
+    (central) values
+  \item \strong{max}: Maximum combined p-value across all rounding-consistent
+    parameter combinations
 }
-The object is principally intended for human inspection (via
-\code{print}) and programmatic access to the numeric results.
+
+The object can store results from two different scenarios:
+\enumerate{
+  \item When aggregating p-values directly: only \code{Provided_p} is populated
+  \item When aggregating from \code{\link{t_slicer}} output: both \code{Student}
+    and \code{Welch} are populated with separate results for each t-test variant
 }
+}
+\section{Fields}{
+
+\describe{
+  \item{\code{Student}}{Numeric vector of length 3, \code{c(min, RIVETS, max)},
+    containing combined p-values when aggregating Student's (pooled-variance)
+    t-test results. \code{NULL} when created from direct p-values}
+  \item{\code{Welch}}{Numeric vector of length 3, \code{c(min, RIVETS, max)},
+    containing combined p-values when aggregating Welch's (unequal-variance)
+    t-test results. \code{NULL} when created from direct p-values}
+  \item{\code{Provided_p}}{Numeric vector of length 3, \code{c(min, RIVETS, max)},
+    containing combined p-values when aggregating directly provided p-values.
+    \code{NULL} when created from \code{T_slicer_res} output}
+}
+}
+
+\section{Methods}{
+
+\describe{
+  \item{\code{new(Student = NULL, Welch = NULL, Provided_p = NULL)}}{Constructor
+    that initializes a new \code{Carlisle_res} object. All arguments are
+    optional and default to \code{NULL}}
+  \item{\code{print()}}{Print results to console in a formatted layout,
+    displaying RIVETS values and min/max combinations}
+}
+}
+
 \examples{
-## Construct directly from combined p-values (min, RIVETS, max)
+# Typical usage: returned automatically by carlisle()
+result <- carlisle(c(".05", ".03", ".02", ".08"))
+print(result)
+
+# Manual construction from direct p-values (rarely needed)
 cr1 <- Carlisle_res$new(Provided_p = c(0.012, 0.045, 0.098))
 print(cr1)
 
-## Construct with separate Student and Welch results (min, RIVETS, max for each)
+# Manual construction with Student and Welch results (rarely needed)
 cr2 <- Carlisle_res$new(
-Student = c(0.001, 0.020, 0.150),
-Welch = c(0.002, 0.025, 0.160)
+  Student = c(0.001, 0.020, 0.150),
+  Welch = c(0.002, 0.025, 0.160)
 )
 print(cr2)
 
-## Typical usage: returned by carlisle(); no manual construction needed
 }
 \seealso{
-\code{\link{carlisle}}, \code{\link{t_slicer}}
+\code{\link{carlisle}} for generating these results,
+  \code{\link{t_slicer}} for the upstream t-test analysis
 }
-\keyword{class}
+\keyword{classes}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
@@ -104,11 +110,11 @@ Create a new Carlisle_res object
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{Student}}{Student res}
+\item{\code{Student}}{Numeric vector of length 3 to initialize \code{Student}}
 
-\item{\code{Welch}}{Welch res}
+\item{\code{Welch}}{Numeric vector of length 3 to initialize \code{Welch}}
 
-\item{\code{Provided_p}}{Provided_p res}
+\item{\code{Provided_p}}{Numeric vector of length 3 to initialize \code{Provided_p}}
 }
 \if{html}{\out{</div>}}
 }

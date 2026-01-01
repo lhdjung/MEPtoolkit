@@ -2,28 +2,84 @@
 % Please edit documentation in R/rounding_validation.R
 \name{validate_descriptive}
 \alias{validate_descriptive}
-\title{Validate a descriptive statistic}
+\title{Validate and Expand Descriptive Statistics to Account for Rounding}
 \usage{
 validate_descriptive(statistic, allow_na = FALSE)
 }
 \arguments{
-\item{statistic}{Character string or vector of strings.
-The statistic(s) to validate}
+\item{statistic}{Character scalar or vector. Reported descriptive statistic(s)
+as character strings (e.g., \code{"2.14"}, \code{"10.5"}). Must be
+character to allow inference of rounding precision}
 
-\item{allow_na}{Logical. Allows the use of NA values
-(returns NA for min/original/max)}
+\item{allow_na}{Logical. If \code{TRUE}, permits \code{NA} values in the
+input (which produce \code{NA} in all output fields). Default is \code{FALSE}}
 }
 \value{
-A list of numbers: the possible range of values (minimum, original
-and maximum)
+A list with three numeric vectors of equal length:
+  \describe{
+    \item{minimum}{Lower bound of the plausible interval for each statistic}
+    \item{original}{The reported (central) value for each statistic}
+    \item{maximum}{Upper bound of the plausible interval for each statistic}
+  }
 }
 \description{
-This function checks if a statistic is a string or vector of
-strings that can be converted to numbers, and returns the possible range of
-values before rounding
+Converts reported descriptive statistics (means, standard deviations, or
+other continuous measures) into plausible intervals that account for
+rounding precision. This is a foundational function used throughout the
+package to handle uncertainty in rounded reported values.
 }
+\details{
+The function operates as follows:
+\enumerate{
+  \item Determines the number of decimal places in the reported value using
+    \code{\link{decimal_place}}
+  \item Constructs a plausible interval assuming the value was rounded to
+    the nearest unit in the last decimal place
+  \item Uses the interval \eqn{[\text{value} - 0.5 \times 10^{-d},
+    \text{value} + 0.5 \times 10^{-d}]} where \eqn{d} is the number of
+    decimal places
+}
+
+For example:
+\itemize{
+  \item \code{"2.14"} → [2.135, 2.14, 2.145] (rounded to nearest 0.01)
+  \item \code{"10.5"} → [10.45, 10.5, 10.55] (rounded to nearest 0.1)
+  \item \code{"3"} → [2.5, 3.0, 3.5] (rounded to nearest 1)
+}
+
+This interval represents all true values that would round to the reported
+value under standard rounding rules.
+}
+\section{Use in Package}{
+
+This function is called internally by:
+\itemize{
+  \item \code{\link{t_slicer}} to handle means and standard deviations
+  \item \code{\link{range_killer}} to handle means, SDs, and min/max values
+  \item \code{\link{anova_one_descriptive}} to handle group means and SDs
+}
+}
+
 \examples{
+# Single value
 validate_descriptive("2.14")
+# Returns: list(minimum = 2.135, original = 2.14, maximum = 2.145)
+
+# Multiple values
 validate_descriptive(c("2.14", "3.2"))
+
+# With NA values (requires allow_na = TRUE)
 validate_descriptive(c("2.14", NA, "3.2"), allow_na = TRUE)
+
+# Different precisions
+validate_descriptive("10")     # Integer: ±0.5
+validate_descriptive("10.0")   # One decimal: ±0.05
+validate_descriptive("10.00")  # Two decimals: ±0.005
+
+}
+\seealso{
+\code{\link{validate_p}} for p-value validation with special handling,
+  \code{\link{decimal_place}} for determining rounding precision,
+  \code{\link{t_slicer}}, \code{\link{range_killer}}, and
+  \code{\link{anova_one_descriptive}} which use this function
 }

@@ -2,88 +2,134 @@
 % Please edit documentation in R/carlisle.R
 \name{carlisle}
 \alias{carlisle}
-\title{Carlisle test for aggregate unusualness of baseline p-values}
+\title{Test for Unusual Concentration in Baseline P-Values (Carlisle Test)}
 \usage{
 carlisle(p, output = FALSE)
 }
 \arguments{
-\item{p}{Either a character vector of reported p-values (formatted as
-strings, e.g. \code{".03"}, \code{"0.12"}, \code{"<.001"}) or a
-\code{T_slicer_res} object produced by \code{\link{t_slicer}}.
-If a character vector is provided, the function treats each element as a
-(possibly rounded) reported p and constructs plausible \code{minimum}
-/ \code{original} / \code{maximum} values via \code{\link{validate_p}}.}
+\item{p}{Either a character vector of reported p-values (e.g., \code{".03"},
+\code{"0.12"}, \code{"<.001"}) or a \code{\link{T_slicer_res}} object
+returned by \code{\link{t_slicer}}. When a character vector is provided,
+each element is treated as a potentially rounded value. When a
+\code{T_slicer_res} object is provided, the function aggregates the p-value
+ranges for both Student's and Welch's t-tests separately}
 
-\item{output}{Logical scalar (default \code{FALSE}). If \code{TRUE} the
-returned \code{Carlisle_res} object is printed before being returned.}
+\item{output}{Logical. If \code{TRUE}, prints the result before returning.
+Default is \code{FALSE}}
 }
 \value{
-An object of class \code{Carlisle_res} (an R6 result container).
-When \code{p} is a character vector the returned object contains a single
-vector named \code{Provided_p} with three elements:
-\code{c(min_combined, RIVETS_combined, max_combined)}, where
-\code{RIVETS_combined} is the combined p-value obtained from the
-reported (central) p-values and \code{min_combined} / \code{max_combined}
-are the extreme combined p-values produced by enumerating plausible
-round-off bounds. When \code{p} is a \code{T_slicer_res} object, the
-returned object contains separate \code{Student} and \code{Welch}
-components each structured as \code{c(min, RIVETS, max)}.
+An object of class \code{\link{Carlisle_res}} containing:
+  \describe{
+    \item{When \code{p} is a character vector:}{\code{Provided_p}, a numeric
+      vector of length 3 with \code{c(min, RIVETS, max)} combined p-values}
+    \item{When \code{p} is a \code{T_slicer_res} object:}{\code{Student} and
+      \code{Welch}, each a numeric vector of length 3 with
+      \code{c(min, RIVETS, max)} combined p-values for the respective t-test
+      variant}
+  }
 }
 \description{
-Evaluate whether a set of reported baseline-comparison p-values is
-unusually concentrated near 0 or 1 — a diagnostic commonly used to screen
-randomized trials for anomalies in their Table 1 (imbalances or
-improbably similar groups). The function implements an aggregated
-Z-score (Stouffer-style) combination of (possibly rounded) p-values
-and returns the range of possible combined p-values given rounding
-uncertainty. If supplied with the output of \code{\link{t_slicer}}, the
-function performs the aggregation separately for the Student and Welch
-alternatives.
+Aggregates a set of baseline comparison p-values to detect unusual patterns
+that may indicate systematic imbalances, reporting errors, or data anomalies.
+Commonly used to screen randomized controlled trials for problems in their
+baseline characteristics table (Table 1). The function uses Stouffer's method
+(inverse-normal combination) and accounts for rounding uncertainty by
+computing a range of possible combined p-values.
 }
 \details{
-Method and assumptions:
-\itemize{
-\item Each input p-value is treated as possibly rounded; the function
-uses \code{\link{validate_p}} to obtain a \emph{minimum}, \emph{original}
-and \emph{maximum} candidate for each reported p-value and then
-enumerates the Cartesian product of candidate choices to obtain bounds
-on the combined statistic.
-\item For a given set of k independent p-values the
-function uses the Stouffer (inverse-normal / Z-score) method to combine
-them.
-The combination therefore assumes approximate independence of the
-underlying tests and that the global null (all individual nulls true)
-holds under the null distribution.
-\item When a \code{T_slicer_res} is provided the procedure aggregates the
-min/RIVETS/max p-values produced separately for Student and Welch
-t-tests to give two separate combined results (one for each
-t-test assumption).}
+The function performs the following steps:
+\enumerate{
+  \item Converts each input p-value to a plausible interval using
+    \code{\link{validate_p}}, which accounts for rounding precision
+  \item Generates all combinations of minimum/maximum values across the
+    set of p-values
+  \item For each combination, computes the combined p-value using Stouffer's
+    Z-score method: transforms each p-value to a Z-score via the inverse
+    normal distribution, sums the Z-scores, divides by the square root of
+    the number of tests, and converts back to a p-value
+  \item Records the minimum and maximum combined p-values across all
+    combinations, plus the combined p-value from the reported (central) values
+  \item When input is from \code{t_slicer}, performs the aggregation
+    separately for Student's and Welch's t-test p-value ranges
 }
-\section{Interpretation and caveats}{
+
+The Stouffer method assumes:
+\itemize{
+  \item Independence of the individual tests (correlated variables like
+    height and weight can violate this)
+  \item All individual null hypotheses are true (appropriate for baseline
+    comparisons in randomized trials)
+  \item P-values are uniformly distributed under the null
+}
+}
+\section{Interpretation}{
 
 \itemize{
-\item A combined p-value very close to 0 (or very close to 1 using
-the one-sided mapping implemented here) indicates that the baseline
-table contains more extreme small (or large) p-values than
-expected under chance; such departures can reflect genuine
-systematic differences, reporting errors (e.g. mislabelled SD vs
-SE), or data fabrication — the method is a screen, not proof.
-\item The combining method assumes independence of tests; correlated
-baseline variables (e.g. weight and BMI) can invalidate the
-independence assumption and make the combined p-value
-anticonservative. Consider this when interpreting results.}
+  \item \strong{Very small combined p-values} (e.g., < 0.001) suggest an
+    unusual concentration of small individual p-values, which may indicate:
+    \itemize{
+      \item Genuine systematic differences between groups (potential
+        randomization failure)
+      \item Reporting errors (e.g., confusing standard deviations with
+        standard errors)
+      \item Data fabrication or manipulation
+    }
+  \item \strong{Very large combined p-values} (e.g., > 0.999) suggest an
+    unusual concentration of large individual p-values, which may indicate
+    groups are implausibly similar
+  \item This test is a screening tool, not definitive proof of problems
+  \item Consider the independence assumption: highly correlated baseline
+    variables will make the test anticonservative (too many false positives)
+}
+}
+
+\section{Limitations}{
+
+\itemize{
+  \item The test assumes independence; including correlated variables
+    (e.g., weight, BMI, and body surface area together) inflates Type I error
+  \item The test is sensitive to the number of comparisons: more comparisons
+    increase the chance of detecting departures from uniformity
+  \item Cannot distinguish between different causes of unusual patterns
+    (genuine imbalance vs. errors vs. fabrication)
+}
 }
 
 \examples{
-carlisle(c(".99", ".95", ".98", ".90"), output=TRUE)
-data <- data.frame(m1 = c("1.20", "1.25"), s1 = c("1.2", "1.25"), n1 = c(60, 60),
-                   m2 = c("2.1", "2.15"), s2 = c("2.5", "2.55"), n2 = c(30, 30),
-                   p = c(NA, NA))
-res <- t_slicer(m1 = m1, s1 = s1, n1 = n1, m2 = m2, s2 = s2, n2 = n2,
-                data = data, output = TRUE)
-carlisle(res, output = TRUE)
+# Test a set of suspiciously small p-values
+result <- carlisle(c(".05", ".03", ".02", ".08"), output = TRUE)
+
+# Test a set of suspiciously large p-values
+carlisle(c(".99", ".95", ".98", ".90"), output = TRUE)
+
+# Use with t_slicer output to test both Student and Welch variants
+df <- data.frame(
+  m1 = c("1.20", "1.25"),
+  s1 = c("1.2", "1.25"),
+  n1 = c(60, 60),
+  m2 = c("2.1", "2.15"),
+  s2 = c("2.5", "2.55"),
+  n2 = c(30, 30)
+)
+t_result <- t_slicer(
+  m1 = m1, s1 = s1, n1 = n1,
+  m2 = m2, s2 = s2, n2 = n2,
+  data = df
+)
+carlisle(t_result, output = TRUE)
 
 }
+\references{
+Carlisle, J. B. (2012). The analysis of 168 randomised controlled trials to
+test data integrity. \emph{Anaesthesia}, 67(5), 521-537.
+
+Stouffer, S. A., Suchman, E. A., DeVinney, L. C., Star, S. A., & Williams,
+R. M., Jr. (1949). \emph{The American Soldier: Adjustment during Army life}
+(Vol. 1). Princeton University Press.
+}
 \seealso{
-\code{\link{t_slicer}}
+\code{\link{Carlisle_res}} for the result object structure,
+  \code{\link{t_slicer}} for computing p-value ranges from descriptive
+  statistics,
+  \code{\link{validate_p}} for the p-value validation function
 }

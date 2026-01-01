@@ -2,138 +2,133 @@
 % Please edit documentation in R/t_slicer.R
 \name{t_slicer}
 \alias{t_slicer}
-\title{Compute Student and Welch t-tests using descriptive stats, and compare to reported results}
+\title{Test Consistency of Reported t-Test Results with Descriptive Statistics}
 \usage{
 t_slicer(m1, s1, n1, m2, s2, n2, p = NULL, data = NULL, output = FALSE)
 }
 \arguments{
-\item{m1}{Character scalar/vector. Reported mean(s) for group 1. Values may
-be formatted numbers (e.g. "1.23") and may represent rounded reports;
-the function will construct a plausible interval around the reported value.}
+\item{m1}{Character scalar or vector. Reported mean(s) for group 1. Can be
+formatted numbers (e.g., \code{"1.23"}) that may represent rounded values}
 
-\item{s1}{Character scalar/vector. Reported standard deviation(s) for group 1
-(same format and interpretation as \code{m1}).}
+\item{s1}{Character scalar or vector. Reported standard deviation(s) for
+group 1 (same format as \code{m1})}
 
-\item{n1}{Numeric scalar/vector. Sample size(s) for group 1 (one integer per
-case).}
+\item{n1}{Numeric scalar or vector. Sample size(s) for group 1 (integers ≥ 2)}
 
-\item{m2}{Character scalar/vector. Reported mean(s) for group 2 (same
-conventions as \code{m1}).}
+\item{m2}{Character scalar or vector. Reported mean(s) for group 2 (same
+format as \code{m1})}
 
-\item{s2}{Character scalar/vector. Reported standard deviation(s) for group 2
-(same conventions as \code{s1}).}
+\item{s2}{Character scalar or vector. Reported standard deviation(s) for
+group 2 (same format as \code{s1})}
 
-\item{n2}{Numeric scalar/vector. Sample size(s) for group 2 (one integer per
-case).}
+\item{n2}{Numeric scalar or vector. Sample size(s) for group 2 (integers ≥ 2)}
 
-\item{p}{Optional character scalar/vector. Reported p-value(s). If
-provided the function constructs an interval that reflects rounding
-precision and checks whether the reported interval overlaps the test
-interval(s). Use \code{NA} (or omit) when no p is reported.}
+\item{p}{Character scalar or vector, optional. Reported p-value(s). Can be
+\code{NA} or omitted when no p-value is reported. Default is \code{NULL}}
 
-\item{data}{Optional dataframe. If supplied, \code{m1}, \code{s1}, \code{n1},
-\code{m2}, \code{s2}, \code{n2} and \code{p} are interpreted as column
-names (unquoted or quoted) and resolved inside \code{data}}
+\item{data}{Data frame, optional. If provided, the other arguments are
+interpreted as column names (quoted or unquoted) within \code{data}}
 
-\item{output}{Logical scalar (default \code{FALSE}). When \code{TRUE} the
-function prints a human-readable summary and plots the diagnostic plot(s)
-before returning the result object.}
+\item{output}{Logical. If \code{TRUE}, prints a summary and displays
+diagnostic plots before returning the result object. Default is \code{FALSE}}
 }
 \value{
-An object of class \code{T_slicer_res} (an R6 result container). The
-object contains the following components (each a vector of length equal to
-the number of input cases):
-\itemize{
-\item \code{Student_min}, \code{Student_RIVETS}, \code{Student_max}:
-minimum, reported (RIVETS), and maximum plausible p-values for the
-Student (pooled variance, \code{var.equal = TRUE}) t-test.
-\item \code{Welch_min}, \code{Welch_RIVETS}, \code{Welch_max}:
-analogous quantities for the Welch (unequal-variance) t-test.
-\item \code{Student}, \code{Welch}: logical vectors indicating whether
-the reported p-interval (if supplied) is consistent with the
-corresponding test (TRUE = overlap; FALSE = no overlap; NA = no
-reported p).
-\item \code{Plots}: list of \pkg{ggplot2} objects (one per case)
-visualising the min/mid/max p-values and, when available, the
-reported-p interval.
-}
+An object of class \code{\link{T_slicer_res}} containing:
+  \describe{
+    \item{Student_min, Student_RIVETS, Student_max}{Minimum, reported-value,
+      and maximum plausible p-values for Student's t-test (pooled variance)}
+    \item{Welch_min, Welch_RIVETS, Welch_max}{Analogous p-values for
+      Welch's t-test (unequal variance)}
+    \item{Student}{Logical vector indicating whether reported p-value is
+      consistent with Student's t-test (\code{TRUE} = consistent,
+      \code{FALSE} = inconsistent, \code{NA} = no reported p)}
+    \item{Welch}{Logical vector indicating consistency with Welch's t-test
+      (same interpretation as \code{Student})}
+    \item{Plots}{List of \pkg{ggplot2} objects visualizing p-value ranges
+      and reported p-intervals for each case}
+  }
 }
 \description{
-Evaluate which two-sample t-test (Student's pooled-variance or Welch's
-unequal-variance) is consistent with reported summary statistics and — if
-provided — a reported p-value. The function accounts for rounding
-imprecision by working with intervals of possible reported values and
-enumerating the plausible combinations to produce minimum/maximum possible
-p-values for each test, plus the p-value computed from the reported
-(central) values ("RIVETS").
+Determines which two-sample t-test variant (Student's pooled-variance or
+Welch's unequal-variance) is consistent with reported summary statistics.
+When p-values are provided, the function checks whether they align with
+either test. The analysis accounts for rounding imprecision by computing
+plausible intervals around reported values.
 }
 \details{
-t_slicer takes as input 2 sets of descriptive statistics (means and sds)
-and (optionally) reported p values. It computes the results of the Student's
-and Welch's t tests, and compares the resulting with the reported p values
-(if provided) to see which test(s) - if any - match(es)
-
-This is useful when a paper or report gives only means, standard deviations
-and sample sizes (and perhaps a rounded p-value) and you want to check
-which model of the t-test the reported result is compatible with. It is also
-useful as an initial calculation leading to a \code{carlisle} function call,
-in case the p-values were not given.
-
-Implementation notes:
+The function performs the following steps for each case:
 \enumerate{
-\item Each reported descriptive value (means and SDs) is passed through
-\code{\link{validate_descriptive}} which returns a \emph{minimum},
-\emph{original} and \emph{maximum} candidate — reflecting the possible
-values consistent with the reported (rounded) number.
-\item The function forms the (Cartesian) grid of plausible combinations of
-the minimum/maximum candidates for the two means and two SDs. For every
-combination it computes two-sample t-test p-values using
-\pkg{BSDA}::\code{tsum.test} with \code{var.equal = TRUE} (Student) and
-\code{var.equal = FALSE} (Welch). The minimum and maximum p-values
-across the grid are returned together with the p-value computed
-from the reported (central) values (RIVETS).
-\item If a reported p-value is supplied, it is interpreted as an
-interval (via \code{\link{validate_p}}) and compared to the test
-intervals; the boolean pass/fail flags indicate overlap.
-\item A diagnostic plot is produced for each case: points show the
-(min, mid, max) p-values for each test and, when applicable, a
-shaded rectangle visualises the reported p-interval.
+  \item Converts each reported descriptive statistic (means and SDs) into a
+    plausible interval using \code{\link{validate_descriptive}}, which
+    accounts for rounding precision
+  \item Generates all combinations of minimum/maximum values for the four
+    descriptive statistics (two means, two SDs)
+  \item Computes two-sample t-test p-values for each combination using
+    \code{\link[BSDA]{tsum.test}} with both \code{var.equal = TRUE}
+    (Student's t-test) and \code{var.equal = FALSE} (Welch's t-test)
+  \item Records the minimum and maximum p-values across all combinations,
+    plus the p-value computed from the reported (central) values (RIVETS)
+  \item If a reported p-value is provided, converts it to an interval via
+    \code{\link{validate_p}} and checks whether it overlaps with the
+    plausibility intervals for each test
+  \item Creates a diagnostic plot showing the p-value ranges and, when
+    applicable, the reported p-interval as a colored rectangle (green for
+    consistent, red for inconsistent)
+}
+
+This function is particularly useful for:
+\itemize{
+  \item Verifying which t-test variant was likely used in published analyses
+  \item Detecting potential errors in reported statistics
+  \item Preparing inputs for more detailed consistency analyses (e.g.,
+    \code{carlisle} tests)
 }
 }
-\section{Assumptions and limitations}{
+\section{Assumptions and Limitations}{
 
 \itemize{
-\item The numeric sample sizes \code{n1} and \code{n2} should be integers
-≥2. Very small sample sizes (e.g. n<5) make the t-test
-approximation unstable and increase sensitivity to rounding.
-\item The function depends on \pkg{BSDA}::\code{tsum.test} for fast
-two-sample t-test computation from summary statistics; its
-results follow the same conventions as that function.
+  \item Sample sizes should be integers ≥ 2. Very small samples (n < 5)
+    increase sensitivity to rounding and may produce unstable results
+  \item All reported values are assumed to be rounded to the precision
+    indicated by their string representation
+  \item The function assumes independent samples and approximately normal
+    distributions within groups (standard t-test assumptions)
 }
 }
 
 \examples{
-## Single reported comparison (with a reported p-value)
-t_slicer(m1 = "1.20", s1 = "1.2", n1 = 60,
-m2 = "2.10", s2 = "2.5", n2 = 30,
-p = ".08", output = TRUE)
-
-## Multiple rows supplied in a data.frame (columns may be quoted names)
-df <- data.frame(
-m1 = c("1.20", "1.25"),
-s1 = c("1.2", "1.25"),
-n1 = c(60, 60),
-m2 = c("2.10", "2.15"),
-s2 = c("2.5", "2.55"),
-n2 = c(30, 30),
-p = c(NA, NA)
+# Single comparison with reported p-value
+result <- t_slicer(
+  m1 = "1.20", s1 = "1.2", n1 = 60,
+  m2 = "2.10", s2 = "2.5", n2 = 30,
+  p = ".08",
+  output = TRUE
 )
-t_slicer(m1 = m1, s1 = s1, n1 = n1,
-m2 = m2, s2 = s2, n2 = n2,
-data = df, output = TRUE)
+
+# Multiple comparisons from a data frame
+df <- data.frame(
+  m1 = c("1.20", "1.25"),
+  s1 = c("1.2", "1.25"),
+  n1 = c(60, 60),
+  m2 = c("2.10", "2.15"),
+  s2 = c("2.5", "2.55"),
+  n2 = c(30, 30),
+  p = c(".08", NA)
+)
+result <- t_slicer(
+  m1 = m1, s1 = s1, n1 = n1,
+  m2 = m2, s2 = s2, n2 = n2,
+  p = p, data = df
+)
+print(result)
+\dontrun{
+plot(result)
+}
 
 }
 \seealso{
-\code{\link{validate_descriptive}}, \code{\link{validate_p}},
-\pkg{BSDA}::\code{tsum.test}
+\code{\link{T_slicer_res}} for the result object structure,
+  \code{\link{validate_descriptive}} and \code{\link{validate_p}} for
+  validation functions,
+  \code{\link[BSDA]{tsum.test}} for the underlying t-test implementation
 }

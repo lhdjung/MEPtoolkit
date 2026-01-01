@@ -3,19 +3,74 @@
 \docType{class}
 \name{Anova_res}
 \alias{Anova_res}
-\title{R6 class: results of an Anova reconstruction function}
+\title{Results Container for One-Way ANOVA Reconstruction}
 \description{
-R6 class: results of an Anova reconstruction function
-
-R6 class: results of an Anova reconstruction function
+An R6 class that stores results from ANOVA reconstruction functions (currently
+\code{\link{anova_one_descriptive}}), which reconstruct omnibus F-test p-values
+from reported descriptive statistics. The container holds p-value ranges that
+account for rounding uncertainty in the reported means and standard deviations.
 }
 \details{
-Object container for results produced by \code{anovas} functions.
+This object stores reconstructed ANOVA p-values in a three-element format:
+\itemize{
+  \item \strong{Min}: Minimum possible p-value across all rounding-consistent
+    parameter combinations
+  \item \strong{RIVETS}: P-value computed from the reported (central) values
+  \item \strong{Max}: Maximum possible p-value across all rounding-consistent
+    parameter combinations
+}
+
+The \code{Function} field stores the name of the function that generated the
+results, which is useful for record-keeping when multiple ANOVA reconstruction
+methods might be added in the future.
+}
+\section{Fields}{
+
+\describe{
+  \item{\code{Min}}{Numeric scalar. Minimum reconstructed p-value from the
+    ANOVA F-test}
+  \item{\code{RIVETS}}{Numeric scalar. P-value reconstructed using the reported
+    (central) descriptive statistics}
+  \item{\code{Max}}{Numeric scalar. Maximum reconstructed p-value from the
+    ANOVA F-test}
+  \item{\code{Function}}{Character scalar. Name of the function that produced
+    these results (e.g., \code{"anova_one_descriptive"})}
+}
+}
+
+\section{Methods}{
+
+\describe{
+  \item{\code{new(Min = NULL, RIVETS = NULL, Max = NULL, Function = NULL)}}{
+    Constructor that initializes a new \code{Anova_res} object. All arguments
+    are optional and default to \code{NULL}}
+  \item{\code{print()}}{Print results to console in a formatted layout,
+    displaying the source function and the min/RIVETS/max p-values}
+}
+}
+
+\examples{
+# Typical usage: returned automatically by anova_one_descriptive()
+result <- anova_one_descriptive(
+  m = c("2.51", "3.12"),
+  s = c("0.58", "0.34"),
+  n = c(40, 40)
+)
+print(result)
+
+# Manual construction (rarely needed)
+ar <- Anova_res$new(
+  Min = 0.001,
+  RIVETS = 0.005,
+  Max = 0.015,
+  Function = "anova_one_descriptive"
+)
+
 }
 \seealso{
-\code{\link{anova_one_descriptive}}
+\code{\link{anova_one_descriptive}} for generating these results
 }
-\keyword{class}
+\keyword{classes}
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
@@ -53,13 +108,13 @@ Create a new Anova_res object
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{Min}}{Minimum p value}
+\item{\code{Min}}{Numeric scalar for minimum p-value}
 
-\item{\code{RIVETS}}{RIVETS p value}
+\item{\code{RIVETS}}{Numeric scalar for RIVETS p-value}
 
-\item{\code{Max}}{Max p value}
+\item{\code{Max}}{Numeric scalar for maximum p-value}
 
-\item{\code{Function}}{The function that was called to create those results}
+\item{\code{Function}}{Character scalar naming the source function}
 }
 \if{html}{\out{</div>}}
 }

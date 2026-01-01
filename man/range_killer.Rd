@@ -2,72 +2,146 @@
 % Please edit documentation in R/range_killer.R
 \name{range_killer}
 \alias{range_killer}
-\title{Range-based robustness check of descriptive statistics after removing extremes}
+\title{Assess Robustness of Descriptive Statistics to Removal of Extreme Values}
 \usage{
-range_killer(m, s, n, min, max, output = FALSE)
+range_killer(m, s, n, min, max, data = NULL, output = FALSE)
 }
 \arguments{
-\item{m}{Character scalar/vector. Point estimate of the sample mean.
-Length must equal the number of cases.}
+\item{m}{Character scalar or vector. Reported sample mean(s). Can be formatted
+numbers (e.g., \code{"10.5"}) that may represent rounded values}
 
-\item{s}{Character scalar/vector. Point estimate of the sample standard
-deviation (SD). Length must equal the number of cases.}
+\item{s}{Character scalar or vector. Reported sample standard deviation(s)
+(same format as \code{m})}
 
-\item{n}{An integer vector of sample sizes (one value per case). Length must
-equal the number of cases. Each element must be \eqn{\ge 4} (see Details).}
+\item{n}{Numeric scalar or vector. Sample size(s) (integers ≥ 4). Must be at
+least 4 because the analysis removes 2 observations and requires degrees of
+freedom for SD calculation}
 
-\item{min}{Character scalar/vector. Point estimate of the sample minimum value.
-Length must equal the number of cases.}
+\item{min}{Character scalar or vector. Reported minimum value(s) in the sample
+(same format as \code{m})}
 
-\item{max}{Character scalar/vector. Point estimate of the sample maximum value.
-Length must equal the number of cases.}
+\item{max}{Character scalar or vector. Reported maximum value(s) in the sample
+(same format as \code{m})}
+
+\item{data}{Data frame, optional. If provided, other arguments are interpreted
+as column names (quoted or unquoted) within \code{data}}
+
+\item{output}{Logical. If \code{TRUE}, prints the result before returning.
+Default is \code{FALSE}}
 }
 \value{
-A named list with six numeric vectors:
-\describe{
-\item{res_m_min}{minimum possible mean after removing the minimum and maximum values once.}
-\item{res_m_max}{maximum possible mean after removing the minimum and maximum values once.}
-\item{res_s_min}{minimum possible SD after removing the minimum and maximum values once.}
-\item{res_s_max}{maximum possible SD after removing the minimum and maximum values once.}
-\item{res_m_RIVETS}{mean recalculated from the exact \code{original} reported values.}
-\item{res_s_RIVETS}{SD recalculated from the exact \code{original} reported values.}
-}
+An object of class \code{\link{Range_killer_res}} containing six
+  numeric vectors:
+  \describe{
+    \item{Min_mean}{Minimum possible mean after removing extremes}
+    \item{RIVETS_mean}{Mean recalculated from reported (central) values}
+    \item{Max_mean}{Maximum possible mean after removing extremes}
+    \item{Min_sd}{Minimum possible SD after removing extremes (or \code{-1}
+      if impossible)}
+    \item{RIVETS_sd}{SD recalculated from reported (central) values (or
+      \code{-1} if impossible)}
+    \item{Max_sd}{Maximum possible SD after removing extremes (or \code{-1}
+      if impossible)}
+  }
 }
 \description{
-Compute bounds on the sample mean and standard deviation that can arise when
-the observed minimum and maximum values are removed from the sample. The
-function explores combinations of plausible values for the descriptive
-statistics (minimum / original / maximum) for the reported mean, standard
-deviation, minimum and maximum and returns the worst-case (min / max)
-resulting mean and standard deviation for each input case. It also returns
-the recalculated mean and standard deviation obtained when using the
-\emph{original}/RIVETS reported values.
+Evaluates the sensitivity of reported summary statistics (mean and standard
+deviation) to the removal of extreme observations. This function computes
+bounds on what the mean and SD would be if the minimum and maximum values
+were removed from the sample, accounting for rounding uncertainty in all
+reported statistics. Useful for detecting reporting errors or assessing the
+influence of outliers on published results.
 }
 \details{
-For each case, the function forms the Cartesian product
-of the three candidate values (minimum, original, maximum) provided
-for each of the four descriptors (mean, SD, min, max). For every combination
-it recomputes the sample mean and SD that would result after removing the
-reported minimum and maximum observations from an original sample of size n-2.
-Computations use the following algebraic identities:
-
-* New mean: \eqn{m' = (n m - (min + max)) / (n - 2)}.
-* Sum of squares (original): \eqn{SS = (n-1) s^2 + n m^2}.
-* New variance (unbiased): \eqn{var' = [SS' - (n-2) m'^2] / (n-3)}, where
-\eqn{SS'} is \eqn{SS} less the squared removed values.
-
-The function sets the recalculated SD to \code{-1} if the computed variance
-is negative (this flags an impossible/inconsistent combination).
+The function performs the following steps for each case:
+\enumerate{
+  \item Converts each reported statistic (mean, SD, min, max) into a plausible
+    interval using \code{\link{validate_descriptive}}, which accounts for
+    rounding precision
+  \item Generates all combinations of minimum/original/maximum values for the
+    four statistics (3^4 = 81 combinations per case)
+  \item For each combination, recalculates the mean and SD that would result
+    if the minimum and maximum observations were removed from the sample
+  \item Records the minimum and maximum recalculated values across all
+    combinations, plus the values computed from the reported (central)
+    statistics
 }
-\section{Requirements and edge-cases}{
+
+The recalculations use standard algebraic identities:
+\itemize{
+  \item \strong{New mean}: \eqn{\bar{x}' = \frac{n\bar{x} - (x_{min} + x_{max})}{n - 2}}
+  \item \strong{Original sum of squares}: \eqn{SS = (n-1)s^2 + n\bar{x}^2}
+  \item \strong{New sum of squares}: \eqn{SS' = SS - (x_{min}^2 + x_{max}^2)}
+  \item \strong{New variance}: \eqn{s'^2 = \frac{SS' - (n-2)\bar{x}'^2}{n-3}}
+  \item \strong{New SD}: \eqn{s' = \sqrt{s'^2}} (or \code{-1} if \eqn{s'^2 < 0})
+}
+
+When the recalculated variance is negative, this indicates an impossible or
+inconsistent combination of statistics, and the SD is set to \code{-1} as a
+flag value.
+}
+\section{Use Cases}{
 
 \itemize{
-\item All corresponding components (except n) must be characters and of equal length.
-\item Each \code{n[j]} must be at least 4. The formulas include divisions
-by \code{(n-2)} and \code{(n-3)}; values < 4 will produce errors or
-non-finite results.}
+  \item \strong{Error detection}: If recalculated statistics are impossible
+    (SD = \code{-1}), the original reported values may be inconsistent or
+    contain errors
+  \item \strong{Outlier influence}: Large differences between original and
+    trimmed statistics suggest strong influence of extreme values
+  \item \strong{Robustness assessment}: Narrow ranges around RIVETS values
+    indicate statistics that are relatively stable to removal of extremes
+  \item \strong{Reporting verification}: Can help verify whether reported
+    ranges (min/max) are plausible given reported mean and SD
+}
 }
 
-\keyword{descriptive}
+\section{Assumptions and Limitations}{
+
+\itemize{
+  \item Sample size must be at least 4 (n ≥ 4) to allow removal of 2
+    observations while maintaining sufficient degrees of freedom (n-3 ≥ 1)
+  \item The function assumes the reported minimum and maximum represent actual
+    observed values, not theoretical or truncated ranges
+  \item Very small samples (n = 4 or 5) may be highly sensitive to rounding,
+    producing wide bounds
+  \item The \code{-1} flag for impossible SDs is a sentinel value; do not
+    interpret it as a meaningful statistic
+}
+}
+
+\examples{
+# Single case: assess robustness of reported statistics
+result <- range_killer(
+  m = "10.5", s = "2.3", n = 20,
+  min = "5.2", max = "15.8",
+  output = TRUE
+)
+
+# Multiple cases from a data frame
+df <- data.frame(
+  mean = c("10.5", "8.2"),
+  sd = c("2.3", "1.9"),
+  sample_size = c(20, 25),
+  minimum = c("5.2", "4.1"),
+  maximum = c("15.8", "12.3")
+)
+result <- range_killer(
+  m = mean, s = sd, n = sample_size,
+  min = minimum, max = maximum,
+  data = df
+)
+print(result)
+
+# Check for impossible statistics (inconsistent reporting)
+suspicious <- range_killer(
+  m = "10.0", s = "0.5", n = 10,
+  min = "5.0", max = "15.0"  # Range too wide for this mean/SD
+)
+# If RIVETS_sd is -1, the reported values are inconsistent
+
+}
+\seealso{
+\code{\link{Range_killer_res}} for the result object structure,
+  \code{\link{validate_descriptive}} for the validation function
+}
 \keyword{robust}
-\keyword{sensitivity}
